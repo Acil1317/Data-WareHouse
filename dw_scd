@@ -1,0 +1,185 @@
+-- type 1
+CREATE TABLE dim_customer_s1 (
+    customer_id VARCHAR(50) PRIMARY KEY,
+    nama VARCHAR(100),
+    kota VARCHAR(100),
+    status_member VARCHAR(50)
+);
+-- Tahun 2023: Data Awal
+INSERT INTO dim_customer_s1 (customer_id, nama, kota, status_member)
+VALUES ('C001', 'Budi', 'Jakarta', 'Silver');
+
+-- Tahun 2024: Budi pindah ke Bandung (Data Jakarta terhapus/ditimpa)
+UPDATE dim_customer_s1 
+SET kota = 'Bandung' 
+WHERE customer_id = 'C001';
+
+-- Tahun 2025: Status berubah menjadi Gold (Data Silver terhapus/ditimpa)
+UPDATE dim_customer_s1 
+SET status_member = 'Gold' 
+WHERE customer_id = 'C001';
+
+-- type 2
+CREATE TABLE dim_customer_s2 (
+    customer_key SERIAL PRIMARY KEY, -- Surrogate key (ID unik untuk tiap baris)
+    customer_id VARCHAR(50),         -- Natural key (ID pelanggan tetap)
+    nama VARCHAR(100),
+    kota VARCHAR(100),
+    status_member VARCHAR(50),
+    start_date DATE,
+    end_date DATE,
+    is_current BOOLEAN
+);
+-- Tahun 2023: Data Awal
+INSERT INTO dim_customer_s2 (customer_id, nama, kota, status_member, start_date, end_date, is_current)
+VALUES ('C001', 'Budi', 'Jakarta', 'Silver', '2023-01-01', '9999-12-31', TRUE);
+
+-- Tahun 2024: Perubahan Kota ke Bandung
+-- Langkah 1: Nonaktifkan record yang saat ini aktif
+UPDATE dim_customer_s2
+SET end_date = '2023-12-31', is_current = FALSE
+WHERE customer_id = 'C001' AND is_current = TRUE;
+
+-- Langkah 2: Masukkan record baru dengan kota yang baru
+INSERT INTO dim_customer_s2 (customer_id, nama, kota, status_member, start_date, end_date, is_current)
+VALUES ('C001', 'Budi', 'Bandung', 'Silver', '2024-01-01', '9999-12-31', TRUE);
+
+-- Tahun 2025: Perubahan Status Member ke Gold
+-- Langkah 1: Nonaktifkan record yang saat ini aktif
+UPDATE dim_customer_s2
+SET end_date = '2024-12-31', is_current = FALSE
+WHERE customer_id = 'C001' AND is_current = TRUE;
+
+-- Langkah 2: Masukkan record baru dengan status member yang baru
+INSERT INTO dim_customer_s2 (customer_id, nama, kota, status_member, start_date, end_date, is_current)
+VALUES ('C001', 'Budi', 'Bandung', 'Gold', '2025-01-01', '9999-12-31', TRUE);
+
+-- type 3
+CREATE TABLE dim_customer_s3 (
+    customer_id VARCHAR(50) PRIMARY KEY,
+    nama VARCHAR(100),
+    kota_current VARCHAR(100),
+    kota_previous VARCHAR(100),
+    status_member_current VARCHAR(50),
+    status_member_previous VARCHAR(50)
+);
+-- Tahun 2023: Data Awal
+INSERT INTO dim_customer_s3 (customer_id, nama, kota_current, kota_previous, status_member_current, status_member_previous)
+VALUES ('C001', 'Budi', 'Jakarta', NULL, 'Silver', NULL);
+
+-- Tahun 2024: Budi pindah ke Bandung
+-- Pindahkan data kota_current ke kota_previous, lalu isi kota_current dengan yang baru
+UPDATE dim_customer_s3
+SET kota_previous = kota_current,
+    kota_current = 'Bandung'
+WHERE customer_id = 'C001';
+
+-- Tahun 2025: Status berubah menjadi Gold
+-- Pindahkan data status_current ke status_previous, lalu isi status_current dengan yang baru
+UPDATE dim_customer_s3
+SET status_member_previous = status_member_current,
+    status_member_current = 'Gold'
+WHERE customer_id = 'C001';
+
+-- alternatif 
+
+CREATE TABLE dim_customer (
+    customer_id VARCHAR(50) PRIMARY KEY,
+    nama VARCHAR(100),
+    kota VARCHAR(100),
+    status_member VARCHAR(50)
+);
+
+INSERT INTO dim_customer (customer_id, nama, kota, status_member)
+VALUES ('C001', 'Budi', 'Jakarta', 'Silver');
+
+ALTER TABLE dim_customer DROP CONSTRAINT dim_customer_pkey;
+
+ALTER TABLE dim_customer DROP COLUMN status_member;
+
+ALTER TABLE dim_customer ADD COLUMN customer_key SERIAL PRIMARY KEY;
+
+ALTER TABLE dim_customer ADD COLUMN start_date DATE;
+
+ALTER TABLE dim_customer ADD COLUMN end_date DATE;
+
+ALTER TABLE dim_customer ADD COLUMN is_current BOOLEAN;
+
+UPDATE dim_customer 
+SET start_date = '2023-01-01', 
+    end_date = '2023-12-31', 
+    is_current = FALSE 
+WHERE customer_id = 'C001';
+
+INSERT INTO dim_customer (customer_id, nama, kota, start_date, end_date, is_current)
+VALUES ('C001', 'Budi', 'Bandung', '2024-01-01', '9999-12-31', TRUE);
+
+ALTER TABLE dim_customer MODIFY COLUMN customer_key BIGINT UNSIGNED AUTO_INCREMENT FIRST;.
+
+UPDATE dim_customer
+SET end_date = '2023-12-31', 
+    is_current = 'N'
+WHERE customer_id = 'C001' AND is_current = 'Y';
+
+INSERT INTO dim_customer (customer_id, nama, kota, start_date, end_date, is_current)
+VALUES ('C001', 'Budi', 'Bandung', '2024-01-01', '9999-12-31', 'Y');
+
+UPDATE dim_customer
+SET end_date = '2023-12-31', 
+    is_current = 'N'
+WHERE customer_id = 'C001' AND is_current = 'Y';
+
+INSERT INTO dim_customer (customer_id, nama, kota, status_member, start_date, end_date, is_current)
+VALUES ('C001', 'Budi', 'Bandung', 'Silver', '2024-01-01', '9999-12-31', 'Y');
+
+-- 1. Matikan record Budi yang sedang aktif (Data tahun 2024)
+UPDATE dim_customer
+SET end_date = '2024-12-31', 
+    is_current = 'N'
+WHERE customer_id = 'C001' AND is_current = 'Y';
+
+-- 2. Tambahkan record baru Budi untuk tahun 2025 (Status jadi Gold, Kota tetap Bandung)
+INSERT INTO dim_customer (customer_id, nama, kota, status_member, start_date, end_date, is_current)
+VALUES ('C001', 'Budi', 'Bandung', 'Gold', '2025-01-01', '9999-12-31', 'Y');
+
+UPDATE dim_customer
+SET end_date = '2024-12-31', 
+    is_current = 'N'
+WHERE customer_id = 'C001' AND is_current = 'Y';
+
+INSERT INTO dim_customer (customer_id, nama, kota, status_member, start_date, end_date, is_current)
+VALUES ('C001', 'Budi', 'Bandung', 'Gold', '2025-01-01', '9999-12-31', 'Y');
+
+-- 1. Mengubah nama kolom lama menjadi '_sekarang'
+ALTER TABLE dim_customer CHANGE COLUMN kota kota_sekarang VARCHAR(100);
+ALTER TABLE dim_customer CHANGE COLUMN status_member status_member_sekarang VARCHAR(50);
+
+-- 2. Menambahkan kolom '_lama' tepat di sebelahnya biar rapi
+ALTER TABLE dim_customer ADD COLUMN kota_lama VARCHAR(100) AFTER kota_sekarang;
+ALTER TABLE dim_customer ADD COLUMN status_member_lama VARCHAR(50) AFTER status_member_sekarang;
+
+-- 3. Menghapus kolom bawaan SCD Type 2 yang sudah tidak digunakan
+ALTER TABLE dim_customer DROP COLUMN customer_key;
+ALTER TABLE dim_customer DROP COLUMN start_date;
+ALTER TABLE dim_customer DROP COLUMN end_date;
+ALTER TABLE dim_customer DROP COLUMN is_current;
+
+-- 4. Mengembalikan customer_id sebagai Primary Key utama
+ALTER TABLE dim_customer ADD PRIMARY KEY (customer_id);
+
+TRUNCATE TABLE dim_customer;
+
+INSERT INTO dim_customer (customer_id, nama, kota_sekarang, kota_lama, status_member_sekarang, status_member_lama)
+VALUES ('C001', 'Budi', 'Jakarta', NULL, 'Silver', NULL);
+
+UPDATE dim_customer
+SET kota_lama = kota_sekarang,
+    kota_sekarang = 'Bandung'
+WHERE customer_id = 'C001';
+
+UPDATE dim_customer
+SET status_member_lama = status_member_sekarang,
+    status_member_sekarang = 'Gold'
+WHERE customer_id = 'C001';
+
+SELECT * FROM dim_customer;
